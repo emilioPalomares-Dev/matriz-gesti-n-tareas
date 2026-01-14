@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Organiza tus tareas con la Matriz de Eisenhower">
+    <meta name="theme-color" content="#0f172a">
+    <title>Matriz de Eisenhower</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Eisenhower">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --urgent-important: #DC2626;
+            --urgent-not-important: #F59E0B;
+            --not-urgent-important: #10B981;
+            --not-urgent-not-important: #3B82F6;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --card-bg: rgba(30, 41, 59, 0.6);
+            --border-color: rgba(148, 163, 184, 0.2);
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Lexend', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .header h1 {
+            font-size: clamp(28px, 5vw, 42px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 300;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            animation: fadeIn 0.6s ease-out 0.2s backwards;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Lexend', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-reset {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-reset:hover {
+            background: rgba(239, 68, 68, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-export {
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-export:hover {
+            background: rgba(59, 130, 246, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .matrix-container {
+            width: 100%;
+            max-width: 1400px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            animation: fadeInUp 0.6s ease-out 0.3s backwards;
+        }
+
+        .quadrant {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 24px;
+            min-height: 400px;
+            backdrop-filter: blur(20px);
+            border: 2px solid var(--border-color);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quadrant::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .quadrant.dragging-over {
+            border-color: currentColor;
+            transform: scale(1.02);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .quadrant.dragging-over::before {
+            opacity: 1;
+        }
+
+        .urgent-important {
+            color: var(--urgent-important);
+        }
+
+        .urgent-important::before {
+            background: var(--urgent-important);
+        }
+
+        .urgent-not-important {
+            color: var(--urgent-not-important);
+        }
+
+        .urgent-not-important::before {
+            background: var(--urgent-not-important);
+        }
+
+        .not-urgent-important {
+            color: var(--not-urgent-important);
+        }
+
+        .not-urgent-important::before {
+            background: var(--not-urgent-important);
+        }
+
+        .not-urgent-not-important {
+            color: var(--not-urgent-not-important);
+        }
+
+        .not-urgent-not-important::before {
+            background: var(--not-urgent-not-important);
+        }
+
+        .quadrant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .quadrant-title {
+            flex: 1;
+        }
+
+        .quadrant-title h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            letter-spacing: -0.01em;
+        }
+
+        .quadrant-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 300;
+        }
+
+        .task-count {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            backdrop-filter: blur(10px);
+        }
+
+        .tasks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 200px;
+        }
+
+        .task {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            cursor: move;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            animation: taskAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes taskAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .task:hover {
+            background: rgba(15, 23, 42, 0.7);
+            border-color: currentColor;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .task.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 15px;
+            color: var(--text-primary);
+            word-break: break-word;
+            line-height: 1.5;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .task-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .task-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .add-task-btn {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(148, 163, 184, 0.3);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-family: 'Lexend', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .add-task-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: currentColor;
+            color: var(--text-primary);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            padding: 32px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            animation: modalAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-content h3 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: 'Lexend', sans-serif;
+            font-size: 15px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .modal-content input:focus {
+            outline: none;
+            border-color: currentColor;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Lexend', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .modal-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .modal-btn-confirm {
+            background: currentColor;
+            color: #0f172a;
+        }
+
+        .modal-btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .matrix-container {
+                grid-template-columns: 1fr;
+            }
+
+            .quadrant {
+                min-height: 300px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 300;
+        }
+
+        .empty-state-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Matriz de Eisenhower</h1>
+        <p>Organiza tus tareas por urgencia e importancia</p>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-reset" onclick="resetMatrix()">
+            🗑️ Limpiar Matriz
+        </button>
+        <button class="btn btn-export" onclick="exportData()">
+            💾 Exportar Datos
+        </button>
+    </div>
+
+    <div class="matrix-container">
+        <div class="quadrant urgent-important" data-quadrant="urgent-important">
+            <div class="quadrant-header">
+                <div class="quadrant-title">
+                    <h2>🚨 Hacer Ahora</h2>
+                    <p class="quadrant-subtitle">Urgente e Importante</p>
+                </div>
+                <span class="task-count">0</span>
+            </div>
+            <div class="tasks-list"></div>
+            <button class="add-task-btn" onclick="openAddTaskModal('urgent-important')">
+                ➕ Agregar tarea
+            </button>
+        </div>
+
+        <div class="quadrant urgent-not-important" data-quadrant="urgent-not-important">
+            <div class="quadrant-header">
+                <div class="quadrant-title">
+                    <h2>⚡ Delegar</h2>
+                    <p class="quadrant-subtitle">Urgente, No Importante</p>
+                </div>
+                <span class="task-count">0</span>
+            </div>
+            <div class="tasks-list"></div>
+            <button class="add-task-btn" onclick="openAddTaskModal('urgent-not-important')">
+                ➕ Agregar tarea
+            </button>
+        </div>
+
+        <div class="quadrant not-urgent-important" data-quadrant="not-urgent-important">
+            <div class="quadrant-header">
+                <div class="quadrant-title">
+                    <h2>📅 Planificar</h2>
+                    <p class="quadrant-subtitle">No Urgente, Importante</p>
+                </div>
+                <span class="task-count">0</span>
+            </div>
+            <div class="tasks-list"></div>
+            <button class="add-task-btn" onclick="openAddTaskModal('not-urgent-important')">
+                ➕ Agregar tarea
+            </button>
+        </div>
+
+        <div class="quadrant not-urgent-not-important" data-quadrant="not-urgent-not-important">
+            <div class="quadrant-header">
+                <div class="quadrant-title">
+                    <h2>❌ Eliminar</h2>
+                    <p class="quadrant-subtitle">No Urgente, No Importante</p>
+                </div>
+                <span class="task-count">0</span>
+            </div>
+            <div class="tasks-list"></div>
+            <button class="add-task-btn" onclick="openAddTaskModal('not-urgent-not-important')">
+                ➕ Agregar tarea
+            </button>
+        </div>
+    </div>
+
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Agregar Tarea</h3>
+            <input type="text" id="taskInput" placeholder="Escribe tu tarea aquí..." maxlength="200">
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancelar</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmTask()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tasks = {
+            'urgent-important': [],
+            'urgent-not-important': [],
+            'not-urgent-important': [],
+            'not-urgent-not-important': []
+        };
+
+        let currentQuadrant = null;
+        let editingTaskId = null;
+
+        // Load data from localStorage
+        function loadData() {
+            const savedData = localStorage.getItem('eisenhowerMatrix');
+            if (savedData) {
+                tasks = JSON.parse(savedData);
+                renderAllQuadrants();
+            }
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('eisenhowerMatrix', JSON.stringify(tasks));
+        }
+
+        // Generate unique ID
+        function generateId() {
+            return Date.now() + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Open add task modal
+        function openAddTaskModal(quadrant) {
+            currentQuadrant = quadrant;
+            editingTaskId = null;
+            document.getElementById('modalTitle').textContent = 'Agregar Tarea';
+            document.getElementById('taskInput').value = '';
+            document.querySelector('.modal-btn-confirm').textContent = 'Agregar';
+            document.getElementById('taskModal').classList.add('active');
+            document.getElementById('taskInput').focus();
+            
+            // Set modal button color based on quadrant
+            const modal = document.getElementById('taskModal');
+            const quadrantElement = document.querySelector(`[data-quadrant="${quadrant}"]`);
+            const color = window.getComputedStyle(quadrantElement).color;
+            document.querySelector('.modal-btn-confirm').style.background = color;
+        }
+
+        // Open edit task modal
+        function openEditTaskModal(quadrant, taskId) {
+            currentQuadrant = quadrant;
+            editingTaskId = taskId;
+            const task = tasks[quadrant].find(t => t.id === taskId);
+            document.getElementById('modalTitle').textContent = 'Editar Tarea';
+            document.getElementById('taskInput').value = task.text;
+            document.querySelector('.modal-btn-confirm').textContent = 'Guardar';
+            document.getElementById('taskModal').classList.add('active');
+            document.getElementById('taskInput').focus();
+            
+            // Set modal button color based on quadrant
+            const quadrantElement = document.querySelector(`[data-quadrant="${quadrant}"]`);
+            const color = window.getComputedStyle(quadrantElement).color;
+            document.querySelector('.modal-btn-confirm').style.background = color;
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('taskModal').classList.remove('active');
+            currentQuadrant = null;
+            editingTaskId = null;
+        }
+
+        // Confirm task (add or edit)
+        function confirmTask() {
+            const input = document.getElementById('taskInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+
+            if (editingTaskId) {
+                // Edit existing task
+                const task = tasks[currentQuadrant].find(t => t.id === editingTaskId);
+                task.text = text;
+            } else {
+                // Add new task
+                const newTask = {
+                    id: generateId(),
+                    text: text
+                };
+                tasks[currentQuadrant].push(newTask);
+            }
+
+            saveData();
+            renderQuadrant(currentQuadrant);
+            closeModal();
+        }
+
+        // Delete task
+        function deleteTask(quadrant, taskId) {
+            if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+                tasks[quadrant] = tasks[quadrant].filter(t => t.id !== taskId);
+                saveData();
+                renderQuadrant(quadrant);
+            }
+        }
+
+        // Render quadrant
+        function renderQuadrant(quadrant) {
+            const quadrantElement = document.querySelector(`[data-quadrant="${quadrant}"]`);
+            const tasksList = quadrantElement.querySelector('.tasks-list');
+            const taskCount = quadrantElement.querySelector('.task-count');
+            
+            tasksList.innerHTML = '';
+            
+            if (tasks[quadrant].length === 0) {
+                tasksList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div>No hay tareas en este cuadrante</div>
+                    </div>
+                `;
+            } else {
+                tasks[quadrant].forEach(task => {
+                    const taskElement = document.createElement('div');
+                    taskElement.className = 'task';
+                    taskElement.draggable = true;
+                    taskElement.dataset.taskId = task.id;
+                    taskElement.dataset.quadrant = quadrant;
+                    
+                    taskElement.innerHTML = `
+                        <span class="task-text">${task.text}</span>
+                        <div class="task-actions">
+                            <button class="task-btn" onclick="openEditTaskModal('${quadrant}', '${task.id}')" title="Editar">✏️</button>
+                            <button class="task-btn" onclick="deleteTask('${quadrant}', '${task.id}')" title="Eliminar">🗑️</button>
+                        </div>
+                    `;
+                    
+                    // Drag events
+                    taskElement.addEventListener('dragstart', handleDragStart);
+                    taskElement.addEventListener('dragend', handleDragEnd);
+                    
+                    tasksList.appendChild(taskElement);
+                });
+            }
+            
+            taskCount.textContent = tasks[quadrant].length;
+        }
+
+        // Render all quadrants
+        function renderAllQuadrants() {
+            Object.keys(tasks).forEach(quadrant => renderQuadrant(quadrant));
+        }
+
+        // Drag and drop handlers
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            if (e.target.classList.contains('quadrant') || e.target.closest('.quadrant')) {
+                const quadrant = e.target.classList.contains('quadrant') ? e.target : e.target.closest('.quadrant');
+                quadrant.classList.add('dragging-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            if (e.target.classList.contains('quadrant')) {
+                e.target.classList.remove('dragging-over');
+            }
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            const targetQuadrant = e.target.classList.contains('quadrant') ? 
+                e.target : e.target.closest('.quadrant');
+            
+            if (targetQuadrant && draggedElement) {
+                const sourceQuadrant = draggedElement.dataset.quadrant;
+                const targetQuadrantName = targetQuadrant.dataset.quadrant;
+                const taskId = draggedElement.dataset.taskId;
+
+                if (sourceQuadrant !== targetQuadrantName) {
+                    // Move task to new quadrant
+                    const taskIndex = tasks[sourceQuadrant].findIndex(t => t.id === taskId);
+                    const task = tasks[sourceQuadrant].splice(taskIndex, 1)[0];
+                    tasks[targetQuadrantName].push(task);
+                    
+                    saveData();
+                    renderQuadrant(sourceQuadrant);
+                    renderQuadrant(targetQuadrantName);
+                }
+
+                targetQuadrant.classList.remove('dragging-over');
+            }
+
+            return false;
+        }
+
+        // Reset matrix
+        function resetMatrix() {
+            if (confirm('¿Estás seguro de que quieres eliminar todas las tareas?')) {
+                tasks = {
+                    'urgent-important': [],
+                    'urgent-not-important': [],
+                    'not-urgent-important': [],
+                    'not-urgent-not-important': []
+                };
+                saveData();
+                renderAllQuadrants();
+            }
+        }
+
+        // Export data
+        function exportData() {
+            const dataStr = JSON.stringify(tasks, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `eisenhower-matrix-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Setup drag and drop for quadrants
+        document.querySelectorAll('.quadrant').forEach(quadrant => {
+            quadrant.addEventListener('dragover', handleDragOver);
+            quadrant.addEventListener('dragenter', handleDragEnter);
+            quadrant.addEventListener('dragleave', handleDragLeave);
+            quadrant.addEventListener('drop', handleDrop);
+        });
+
+        // Modal keyboard shortcuts
+        document.getElementById('taskInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                confirmTask();
+            }
+        });
+
+        document.getElementById('taskModal').addEventListener('click', (e) => {
+            if (e.target.id === 'taskModal') {
+                closeModal();
+            }
+        });
+
+        // Keyboard shortcut for closing modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('taskModal').classList.contains('active')) {
+                closeModal();
+            }
+        });
+
+        // Initialize
+        loadData();
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registered successfully:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
